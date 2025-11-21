@@ -3,6 +3,8 @@
 This repo contains a small analytics pipeline for a synthetic healthcare dataset.  
 The goal is to model patient activity and lab results for downstream BI use, using dbt on top of DuckDB.
 
+Everything is developed in the dbt folder
+
 ---
 
 ## 1. Tech Stack
