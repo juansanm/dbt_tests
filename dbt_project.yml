@@ -1,0 +1,27 @@
+name: 'takehome'
+version: '1.0.0'
+profile: 'takehome'
+model-paths: ["dbt/models"]
+analysis-paths: ["dbt/analyses"]
+test-paths: ["dbt/tests"]
+seed-paths: ["dbt/seeds"]
+macro-paths: ["dbt/macros"]
+snapshot-paths: ["dbt/snapshots"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+on-run-start:
+  - "PRAGMA log_query_path='logs/query_log.sql';"
+models:
+  takehome:
+    staging:
+      +materialized: view
+      +schema: staging
+
+    intermediate:
+      +materialized: table
+      +schema: bronze
+
+    marts:
+      +materialized: table
+      +schema: silver
