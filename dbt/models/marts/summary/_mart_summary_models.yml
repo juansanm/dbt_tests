@@ -1,0 +1,25 @@
+version: 2
+models:
+  - name: patients_per_month
+    description: "Conteo de nuevos pacientes por mes, desglosado por género."
+    columns:
+      - name: month
+        tests: [not_null]
+      - name: new_patients
+        tests: [not_null]
+  - name: medications_per_month
+    description: "Administraciones y pacientes tratados por medicación y mes."
+    columns:
+      - name: month
+        tests: [not_null]
+      - name: medication_id
+        tests: [not_null]
+      - name: patients_treated
+        tests: [not_null]
+  - name: patient_risk_flags
+    description: "Resumen de condiciones y labs anormales por paciente, con flag de alto riesgo."
+    columns:
+      - name: patient_id
+        tests: [not_null, unique]
+      - name: high_risk_flag
+        tests: [not_null]

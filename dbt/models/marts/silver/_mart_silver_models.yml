@@ -1,0 +1,23 @@
+version: 2
+models:
+  - name: patients_by_age
+    description: "Dimensión de pacientes con edad y grupo de edad."
+    columns:
+      - name: patient_id
+        tests:
+          - not_null
+          - unique
+      - name: age_group
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['0-17', '18-34', '35-49', '50-64', '65+', 'unknown']
+  - name: lab_results
+    description: "Resultados de laboratorio a nivel de componente (una fila por prueba)."
+    columns:
+      - name: patient_id
+        tests:
+          - not_null
+      - name: result_date
+        tests:
+          - not_null

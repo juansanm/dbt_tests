@@ -1,0 +1,1 @@
+PRAGMA log_query_path='logs/query_log.sql';
