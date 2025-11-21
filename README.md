@@ -1,75 +1,64 @@
-# Welcome to your SQL take home test
+# Healthcare Take-Home – dbt + DuckDB
 
-## Introduction
+This repo contains a small analytics pipeline for a synthetic healthcare dataset.  
+The goal is to model patient activity and lab results for downstream BI use, using dbt on top of DuckDB.
 
-This assessment will test your ability to parse through raw data and create SQL models to manage and transform the data. Open the GOALS.md file for more specific criteria, but in general you will be expected to be able to:
+---
 
-1) Outputs target tables ( to be specified at another time )
-2) Verifies data quality and integrity
-3) Runs efficiently and cleanly, even with new data added later on
+## 1. Tech Stack
 
-The assessment uses a combination of DuckDB and dbt to orchestrate a facsimile of a data pipeline. There is more information on getting started with these tools below.
+- **dbt Core** (DuckDB adapter)
+- **DuckDB** as the analytical engine (`takehome.duckdb`)
+- **Python** (for environment + dbt execution)
+- **Source data**
+  - CSVs already loaded into DuckDB under schema `raw`
+  - JSON lab result files in `src_data/lab_results/*.json`
 
-## Getting Started
+---
 
-###  *(Optional) Set up a virtual environment before you get started*
+## 2. Data Modeling Approach
 
-### 1. Install DuckDB
+The project follows a classic **staging → intermediate → marts (silver/summary)** pattern.
 
-Using your preferred package manager (brew, pipx, etc) install [DuckDB](https://duckdb.org/docs/installation/?version=stable&environment=cli&download_method=direct)
+### 2.1 Staging layer (`dbt/models/staging`, schema: `staging`)
 
-DuckDB is a local SQL database that can run queries quickly and supports most modern advanced SQL syntax (eg 'qualify')
+First-pass standardisation of each raw table.  
+All staging models are **views** on top of `raw.*`:
 
-### 2. Install dbt
+- `stg_patients`
+- `stg_visits`
+- `stg_conditions`
+- `stg_documents`
+- `stg_medications`
+- `stg_med_admins`
+- `stg_orders`
+- `stg_patient_conditions`
+- `stg_lab_results`  ← JSON parser for lab results
 
-The [dbt-duckdb](https://docs.getdbt.com/docs/core/connect-data-platform/duckdb-setup) adapter is relatively quick and easy to set up. 
+Key responsibilities:
 
-From your python environment, run the command:
+- Rename technical IDs to business-friendly names (`id` → `patient_id`, `visit_id`, …).
+- Derive basic timestamps (e.g. `updated_at` in `stg_patients`).
+- Enforce simple types (dates, numerics, booleans).
+- Keep the logic close to source while making the schema analytics-friendly.
 
-`python -m pip install dbt-core dbt-duckdb`
+`stg_lab_results` deserves special mention: it parses the nested JSON structure
+using DuckDB’s JSON functions and flattens `testResults[]` into one row per component result.
 
-### 3. Exploring the project
+### 2.2 Intermediate layer (`dbt/models/intermediate`, schema: `bronze`)
 
-There is a Justfile that includes some basic commands you can use to get a sense for how the project works. Either copy and run the commands in your console, or (with Just installed, use `just <command>` to test it out).
+This layer joins multiple staging sources into reusable, denormalised tables.
 
-You can explore the raw data with SQL by entering the duckdb shell with the command:
-```duckdb takehome.duckdb```
+- `patients`  
+  Cleaned base patient dimension.
 
-If you accidentally delete or modify the raw tables, you can recreate them by executing the SQL script in the src data file. From the duckdb shell use the command:
-```.read 'src_data/create_src_tables.sql'```
+- `patient_medications`  
+  Joins patients, conditions, orders, medications and administrations to expose which patients received which medication for which condition.
 
-### 4. Running some basic dbt commants to get a feel for the technology
-Examples:
-```
-dbt run
-dbt build
-dbt test -s stg_patients
-```
+- `patient_results` (**incremental**)  
+  Combines `stg_lab_results` and `stg_patients` to produce one row per patient / test / component:
 
-### 5. Copy the pattern in the stg_patients model to create staging versions of each raw table
+  ```sql
+  materialized = 'incremental'
+  unique_key   = ['patient_id', 'result_date', 'component_name']
 
-### 6. Flesh out the data model, completing (at minimum) the models under the 'marts' folder
-
-
-## FAQ
-
-### 1. I've never used dbt before
-
-It's okay. Explore the docs at [getdbt.com](https://docs.getdbt.com/) if you have questions, but for the most part this is a test of your ability to write SQL and handle data transformations. There are some starter SQL models you can use as templates. The most important parts are using '{{ source(...)}}' and '{{ ref(..) }}' jinja macros to refer to other tables in your database.
-
-To test your project you can run the command ```dbt run```
-To only run specific models you can run the command ```dbt run --select {model1} {model2}```
-
-Look in the dbt docs section on 'graph operators' for more details on how to select specific models.
-
-### 2. I've never used duckdb before
-
-It's just a SQL database. The syntax is closer to Postgres, but they also have good documentation [available online](https://duckdb.org/docs/stable/).
-
-### 3. I can't get the package or dependencies to work.
-
-No fear. 'brew install poetry' if you're on a Mac and 'apt install poetry' on Linux (honestly if you're on Linux you definitely know how to install packages) and then 'poetry shell/poetry install' in the root directory should get you set up. If you're having trouble with that, the two packages you really need to have are:
-* duckdb
-* dbt-duckdb  ( Note the specific name! )
-
-If you just can't get anything to work no matter how hard you try, spend your time focusing on writing the SQL models and tables instead.
